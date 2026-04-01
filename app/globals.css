@@ -28,15 +28,23 @@
 
 * {
   box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 html,
 body {
   max-width: 100vw;
   min-height: 100vh;
-  background: var(--background);
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(255, 226, 176, 0.9), transparent 28%),
+    linear-gradient(180deg, #fff9ef 0%, #f3efe5 48%, #ede5d8 100%);
   color: var(--foreground);
   font-family: system-ui, -apple-system, sans-serif;
   line-height: 1.5;
