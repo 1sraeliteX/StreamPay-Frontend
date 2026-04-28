@@ -123,10 +123,16 @@ export function StreamsPageContent({
 }: StreamsPageContentProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const isIncidentMode = process.env.NEXT_PUBLIC_DISABLE_ONCHAIN_OPERATIONS === "true";
   
   const isEmpty = state === "empty" || streams.length === 0;
 
   const handleCreateStream = async () => {
+    if (isIncidentMode) {
+      setErrorMsg("New on-chain operations are temporarily paused during incident mode.");
+      return;
+    }
+
     setIsCreating(true);
     setErrorMsg(null);
     
@@ -164,10 +170,15 @@ export function StreamsPageContent({
             className="button button--primary" 
             type="button"
             onClick={handleCreateStream}
-            disabled={isCreating}
+            disabled={isCreating || isIncidentMode}
           >
             {isCreating ? "Processing..." : streamListCopy.primaryCta}
           </button>
+          {isIncidentMode && (
+            <p style={{ color: "orange", fontSize: "0.875rem", maxWidth: "250px" }}>
+              New on-chain operations are temporarily paused during incident mode.
+            </p>
+          )}
           {errorMsg && (
             <p style={{ color: "red", fontSize: "0.875rem", maxWidth: "250px" }}>
               {errorMsg}

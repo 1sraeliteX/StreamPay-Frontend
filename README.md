@@ -100,3 +100,13 @@ streampay-frontend/
 ## License
 
 MIT
+
+## Smoke tests
+
+This repository includes a CI smoke suite that validates app health and a synthetic stream write/read path.
+
+- `npm run smoke` runs `GET /readyz`, `GET /api/streams`, and a synthetic `POST /api/streams` + `POST /api/streams/{id}/settle`.
+- Use `SMOKE_TARGET_URL` to point at a deployed staging endpoint.
+- Use `SMOKE_AUTH_TOKEN` for synthetic credentials in CI secrets.
+
+A runtime feature flag is also available for incident mode: set `NEXT_PUBLIC_DISABLE_ONCHAIN_OPERATIONS=true` to pause new on-chain operations in the UI.
