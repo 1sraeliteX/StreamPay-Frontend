@@ -153,6 +153,16 @@ streampay-frontend/
 └── README.md
 ```
 
+## GDPR export support
+
+The app now includes a self-serve export flow for stream and activity history under `/api/exports`.
+
+- `POST /api/exports` creates an async export job
+- `GET /api/exports/:id` returns export status
+- `GET /api/exports/:id?download=true` returns a short-lived signed URL for the resulting CSV
+- Export artifacts are retained for 7 days and signed URLs are short-lived
+- Download requests are audited when the signed URL is requested
+
 ## Asset Amount Validation Policy
 
 `app/lib/amount.ts` centralizes amount parsing and stream escrow math used by the frontend stream list.

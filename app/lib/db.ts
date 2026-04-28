@@ -55,6 +55,9 @@ export const db = {
   activity: createActivityMap(),
 
   idempotency: new Map<string, unknown>(),
+  exportJobs: new Map<string, ExportJob>(),
+  exportAudit: new Array<ExportAuditRecord>(),
+  exportProcessing: new Map<string, Promise<void>>(),
 };
 
 export function idempotencyToken(scope: string, idempotencyKey: string): string {
