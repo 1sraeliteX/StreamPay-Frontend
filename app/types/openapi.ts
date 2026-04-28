@@ -42,3 +42,16 @@ export interface ActivityEvent {
   timestamp: string;
   description: string;
 }
+
+export type ExportJobStatus = "pending" | "ready" | "failed" | "expired";
+
+export interface ExportJob {
+  id: string;
+  requestedAt: string;
+  status: ExportJobStatus;
+  signedUrl?: string;
+  signedUrlExpiresAt?: string;
+  expiresAt: string;
+  fileName: string;
+  rows: number;
+}

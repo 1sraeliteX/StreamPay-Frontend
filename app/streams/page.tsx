@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
 import { StreamRow, type StreamRowData } from "../components/StreamRow";
 import { createRate, formatRate, type StreamInterval, type SupportedAsset } from "../lib/amount";
+import { fetchWithIdempotency } from "../lib/apiClient";
 
 export type StreamsViewState = "empty" | "loading" | "populated";
 
@@ -122,9 +123,92 @@ export function StreamsPageContent({
   streams = mockStreams,
 }: StreamsPageContentProps) {
   const [isCreating, setIsCreating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  
+  const [exportJob, setExportJob] = useState<{
+    id: string;
+    status: "pending" | "ready" | "failed" | "expired";
+    signedUrl?: string;
+    signedUrlExpiresAt?: string;
+    expiresAt?: string;
+    fileName?: string;
+    rows?: number;
+  } | null>(null);
+
   const isEmpty = state === "empty" || streams.length === 0;
+
+  const fetchExportStatus = async (id: string) => {
+    try {
+      const response = await fetch(`/api/exports/${id}`);
+      if (!response.ok) {
+        throw new Error(`Export status lookup failed: ${response.status}`);
+      }
+      const json = await response.json();
+      setExportJob(json.data);
+      if (json.data.status === "ready") {
+        setExportMessage("Your export is ready. Download the file while this signed link is valid.");
+      }
+    } catch (error: any) {
+      setExportMessage("Unable to fetch export status. Please try again later.");
+    }
+  };
+
+  useEffect(() => {
+    if (!exportJob || exportJob.status !== "pending") {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      fetchExportStatus(exportJob.id);
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [exportJob]);
+
+  const requestExport = async () => {
+    setIsExporting(true);
+    setExportMessage(null);
+    setErrorMsg(null);
+
+    try {
+      const response = await fetch("/api/exports", { method: "POST" });
+      if (!response.ok) {
+        throw new Error(`Export request failed: ${response.status}`);
+      }
+
+      const json = await response.json();
+      setExportJob(json.data);
+      setExportMessage("Export requested. Preparing a short-lived download link...");
+    } catch (error: any) {
+      setExportMessage(null);
+      setErrorMsg(error.message || "Unable to request export.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const downloadExport = async () => {
+    if (!exportJob) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/exports/${exportJob.id}?download=true`);
+      if (!response.ok) {
+        throw new Error(`Export download failed: ${response.status}`);
+      }
+
+      const json = await response.json();
+      if (json.data?.signedUrl) {
+        window.location.assign(json.data.signedUrl);
+      } else {
+        throw new Error("Signed URL is unavailable.");
+      }
+    } catch (error: any) {
+      setErrorMsg(error.message || "Unable to download export.");
+    }
+  };
 
   const handleCreateStream = async () => {
     setIsCreating(true);
@@ -168,6 +252,67 @@ export function StreamsPageContent({
           >
             {isCreating ? "Processing..." : streamListCopy.primaryCta}
           </button>
+          <button
+            className="button button--secondary"
+            type="button"
+            onClick={requestExport}
+            disabled={isExporting}
+          >
+            {isExporting ? "Requesting export..." : "Export history"}
+          </button>
+
+          {exportJob && (
+            <div
+              style={{
+                background: "var(--panel)",
+                border: "1px solid var(--border)",
+                borderRadius: "1rem",
+                padding: "1rem",
+                maxWidth: "320px",
+              }}
+            >
+              <p style={{ margin: 0, fontWeight: 600 }}>Export status</p>
+              <p style={{ margin: "0.25rem 0 0", color: "var(--muted-light)" }}>
+                {exportJob.status === "pending"
+                  ? "Preparing your CSV export. This may take a few seconds."
+                  : exportJob.status === "ready"
+                  ? `Ready to download ${exportJob.fileName ?? "history.csv"}. Link expires ${new Date(
+                      exportJob.signedUrlExpiresAt ?? ""
+                    ).toLocaleString()}.`
+                  : exportJob.status === "expired"
+                  ? "This export has expired. Request a new download."
+                  : "An error occurred while generating your export."}
+              </p>
+
+              {exportJob.status === "ready" && (
+                <button
+                  className="button button--primary"
+                  type="button"
+                  onClick={downloadExport}
+                  style={{ marginTop: "0.75rem" }}
+                >
+                  Download export
+                </button>
+              )}
+              {exportJob.status === "expired" && (
+                <button
+                  className="button button--secondary"
+                  type="button"
+                  onClick={requestExport}
+                  style={{ marginTop: "0.75rem" }}
+                >
+                  Request again
+                </button>
+              )}
+            </div>
+          )}
+
+          {exportMessage && (
+            <p style={{ color: "var(--muted-light)", fontSize: "0.875rem", maxWidth: "320px" }}>
+              {exportMessage}
+            </p>
+          )}
+
           {errorMsg && (
             <p style={{ color: "red", fontSize: "0.875rem", maxWidth: "250px" }}>
               {errorMsg}

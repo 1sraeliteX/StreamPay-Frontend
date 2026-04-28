@@ -1,5 +1,26 @@
 import { Stream, ActivityEvent } from "@/app/types/openapi";
 
+export type ExportJobStatus = "pending" | "ready" | "failed" | "expired";
+
+export interface ExportJob {
+  id: string;
+  requestedAt: string;
+  status: ExportJobStatus;
+  signedUrl?: string;
+  signedUrlExpiresAt?: string;
+  expiresAt: string;
+  fileName: string;
+  rows: number;
+}
+
+export interface ExportAuditRecord {
+  id: string;
+  exportId: string;
+  type: "export.requested" | "export.downloaded" | "export.expired";
+  timestamp: string;
+  details?: Record<string, unknown>;
+}
+
 export const db = {
   streams: new Map<string, Stream>([
     [
@@ -53,6 +74,9 @@ export const db = {
   ]),
 
   idempotency: new Map<string, unknown>(),
+  exportJobs: new Map<string, ExportJob>(),
+  exportAudit: new Array<ExportAuditRecord>(),
+  exportProcessing: new Map<string, Promise<void>>(),
 };
 
 export function encodeCursor(id: string): string {
