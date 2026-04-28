@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { db } from "@/app/lib/db";
 import { getClientIdentity, checkRateLimit, rateLimitResponse } from "@/app/lib/rate-limit";
 import { recordThrottle, recordRequest } from "@/app/lib/rate-limit-metrics";
 import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 
 function createErrorResponse(code: string, message: string, status: number) {
-  return NextResponse.json({ error: { code, message, request_id: "mock-request-id" } }, { status });
+  const context = getCorrelationContext();
+  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
 }
 
 export async function POST(

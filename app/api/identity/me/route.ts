@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 import { getClientIdentity, checkRateLimit, rateLimitResponse } from "@/app/lib/rate-limit";
 import { recordThrottle, recordRequest } from "@/app/lib/rate-limit-metrics";
@@ -7,7 +7,8 @@ import { getLimitForRoute } from "@/app/lib/rate-limit-config";
 const JWT_SECRET = process.env.JWT_SECRET || "streampay-dev-secret-do-not-use-in-prod";
 
 function createErrorResponse(code: string, message: string, status: number) {
-  return NextResponse.json({ error: { code, message, request_id: "mock-request-id" } }, { status });
+  const context = getCorrelationContext();
+  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
 }
 
 export async function GET(request: Request) {
@@ -32,17 +33,5 @@ export async function GET(request: Request) {
     if (!verified.sub) {
       return createErrorResponse("UNAUTHORIZED", "Invalid or expired token", 401);
     }
-    return NextResponse.json({
-      data: {
-        wallet_address: verified.sub,
-        email: null,
-        display_name: verified.sub.slice(0, 16) + "...",
-        avatar_url: null,
-        created_at: "2026-04-01T09:00:00Z",
-      },
-      links: { self: "/api/v1/identity/me" },
-    });
-  } catch {
-    return createErrorResponse("UNAUTHORIZED", "Invalid or expired token", 401);
-  }
+  });
 }

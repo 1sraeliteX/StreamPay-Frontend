@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 import type { AuditActorRole } from "@/app/types/audit";
 
@@ -14,7 +14,8 @@ const VALID_ROLES = new Set<AuditActorRole>([
 ]);
 
 function createErrorResponse(code: string, message: string, status: number) {
-  return NextResponse.json({ error: { code, message, request_id: "mock-request-id" } }, { status });
+  const context = getCorrelationContext();
+  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
 }
 
 export async function POST(request: Request) {
@@ -22,13 +23,17 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { publicKey, signature, message, role, actorId } = body;
 
-    if (!publicKey || !signature || !message) {
-      return createErrorResponse("VALIDATION_ERROR", "Missing required fields: publicKey, signature, message", 422);
-    }
+      logger.info('Wallet authentication request', { public_key: publicKey });
 
-    if (message !== "Sign this message to authenticate with StreamPay. Nonce: abc123") {
-      return createErrorResponse("INVALID_SIGNATURE", "Signature verification failed", 401);
-    }
+      if (!publicKey || !signature || !message) {
+        logger.warn('Wallet auth validation failed', { fields: { publicKey: !!publicKey, signature: !!signature, message: !!message } });
+        return createErrorResponse("VALIDATION_ERROR", "Missing required fields: publicKey, signature, message", 422);
+      }
+
+      if (message !== "Sign this message to authenticate with StreamPay. Nonce: abc123") {
+        logger.warn('Wallet auth signature verification failed', { public_key: publicKey });
+        return createErrorResponse("INVALID_SIGNATURE", "Signature verification failed", 401);
+      }
 
     const resolvedRole =
       typeof role === "string" && VALID_ROLES.has(role as AuditActorRole) ? (role as AuditActorRole) : "user";

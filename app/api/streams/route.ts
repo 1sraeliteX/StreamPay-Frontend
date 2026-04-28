@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { db } from "@/app/lib/db";
 import { encodeCursor, decodeCursor, idempotencyToken } from "@/app/lib/db";
 
-function createErrorResponse(code: string, message: string, status: number, requestId = "mock-request-id") {
-  return NextResponse.json({ error: { code, message, request_id: requestId } }, { status });
+function createErrorResponse(code: string, message: string, status: number) {
+  const context = getCorrelationContext();
+  return NextResponse.json({ error: { code, message, request_id: context?.request_id } }, { status });
 }
 
 export async function GET(request: Request) {
@@ -35,16 +36,26 @@ export async function GET(request: Request) {
     if (cursorIndex >= 0) {
       streams = streams.slice(cursorIndex + 1);
     }
-  }
 
-  const paginatedStreams = streams.slice(0, limit);
-  const hasNext = streams.length > limit;
-  const nextCursor = hasNext && paginatedStreams.length > 0 ? encodeCursor(paginatedStreams[paginatedStreams.length - 1].id) : null;
+    if (cursor) {
+      const cursorId = decodeCursor(cursor);
+      const cursorIndex = streams.findIndex((s) => s.id === cursorId);
+      if (cursorIndex >= 0) {
+        streams = streams.slice(cursorIndex + 1);
+      }
+    }
 
-  return NextResponse.json({
-    data: paginatedStreams,
-    meta: { hasNext, nextCursor, total: db.streams.size },
-    links: { self: `/api/v1/streams?limit=${limit}` },
+    const paginatedStreams = streams.slice(0, limit);
+    const hasNext = streams.length > limit;
+    const nextCursor = hasNext && paginatedStreams.length > 0 ? encodeCursor(paginatedStreams[paginatedStreams.length - 1].id) : null;
+
+    logger.info('Streams listed successfully', { count: paginatedStreams.length, total: db.streams.size });
+
+    return NextResponse.json({
+      data: paginatedStreams,
+      meta: { hasNext, nextCursor, total: db.streams.size },
+      links: { self: `/api/v1/streams?limit=${limit}` },
+    });
   });
 }
 
@@ -67,19 +78,20 @@ export async function POST(request: Request) {
     return NextResponse.json(db.idempotency.get(token), { status: 201 });
   }
 
-  try {
-    const body = await request.json();
-    const { recipient, rate, schedule } = body;
+    try {
+      const body = await request.json();
+      const { recipient, rate, schedule } = body;
 
-    if (!recipient || !rate || !schedule) {
-      return createErrorResponse("VALIDATION_ERROR", "Missing required fields: recipient, rate, schedule", 422);
-    }
+      if (!recipient || !rate || !schedule) {
+        logger.warn('Stream creation validation failed', { fields: { recipient: !!recipient, rate: !!rate, schedule: !!schedule } });
+        return createErrorResponse("VALIDATION_ERROR", "Missing required fields: recipient, rate, schedule", 422);
+      }
 
     const id = `stream-${crypto.randomUUID().slice(0, 8)}`;
     const now = new Date().toISOString();
     const newStream = { id, recipient, rate, schedule, status: "draft" as const, nextAction: "start" as const, createdAt: now, updatedAt: now };
 
-    db.streams.set(id, newStream);
+      db.streams.set(id, newStream);
 
     const payload = { data: newStream, links: { self: `/api/v1/streams/${id}` } };
 
