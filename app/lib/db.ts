@@ -52,8 +52,35 @@ export const db = {
     ["5ffa85da-27a4-4f7c-bde0-e5c067a28015", { id: "5ffa85da-27a4-4f7c-bde0-e5c067a28015", type: "stream.stopped", streamId: "stream-yusuf", timestamp: "2026-04-27T20:00:00Z", description: "Stream 'Yusuf QA Partnership' stopped and settled automatically." }],
   ]),
 
-  idempotency: new Map<string, unknown>(),
+  idempotency: new Map<string, any>(),
 };
+
+const locks = new Map<string, Promise<void>>();
+
+/**
+ * Simulates a DB-level row lock (SELECT FOR UPDATE).
+ * Ensures that only one operation can proceed for a given stream ID at a time.
+ */
+export async function withLock<T>(id: string, callback: () => Promise<T>): Promise<T> {
+  const existingLock = locks.get(id) || Promise.resolve();
+  let resolveCurrent: () => void;
+  const currentLock = new Promise<void>((resolve) => {
+    resolveCurrent = resolve;
+  });
+  
+  // Chain the lock
+  locks.set(id, currentLock);
+
+  try {
+    await existingLock;
+    return await callback();
+  } finally {
+    if (locks.get(id) === currentLock) {
+      locks.delete(id);
+    }
+    resolveCurrent!();
+  }
+}
 
 export function encodeCursor(id: string): string {
   return Buffer.from(id).toString("base64");
