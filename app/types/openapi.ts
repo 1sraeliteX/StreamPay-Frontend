@@ -35,6 +35,19 @@ export interface ApiErrorResponse {
   error: ApiError;
 }
 
+/** Stable error codes returned on invalid stream state transitions. */
+export type TransitionErrorCode =
+  | "ILLEGAL_TRANSITION"
+  | "INVALID_COMMAND"
+  | "STREAM_NOT_FOUND";
+
+export interface TransitionError {
+  code: TransitionErrorCode;
+  message: string;
+  current_status: StreamStatus;
+  attempted_action: StreamAction;
+}
+
 export interface PaginatedMeta {
   hasNext: boolean;
   nextCursor: string | null;

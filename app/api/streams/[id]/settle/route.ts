@@ -1,29 +1,22 @@
 import { NextResponse } from "next/server";
-import { db } from "@/app/lib/db";
-
-function createErrorResponse(code: string, message: string, status: number) {
-  return NextResponse.json({ error: { code, message, request_id: "mock-request-id" } }, { status });
-}
+import { StreamService } from "@/app/lib/stream-service";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const stream = db.streams.get(id);
-  if (!stream) {
-    return createErrorResponse("STREAM_NOT_FOUND", `Stream '${id}' not found`, 404);
+  const idempotencyKey = request.headers.get("Idempotency-Key") || undefined;
+
+  const result = await StreamService.applyAction(id, "settle", idempotencyKey);
+
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
-  if (stream.status !== "active" && stream.status !== "paused") {
-    return createErrorResponse("INVALID_STREAM_STATE", "Only active or paused streams can be settled", 409);
-  }
-  stream.status = "ended";
-  stream.nextAction = "withdraw";
-  stream.updatedAt = new Date().toISOString();
-  db.streams.set(id, stream);
+
   return NextResponse.json({
     data: {
-      ...stream,
+      ...result.data,
       settlement: {
         txHash: `fake-tx-${crypto.randomUUID().slice(0, 8)}`,
         settledAt: new Date().toISOString(),
