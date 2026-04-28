@@ -74,6 +74,55 @@ streampay-frontend/
 └── README.md
 ```
 
+## Atomic Pause/Resume Semantics
+
+`app/lib/stream-events.ts` provides a single `applyEvent(streamId, cmd)` entry point for stream transitions.
+
+- Lock ordering: always acquire the stream row lock first, then mutate subordinate balances/event state while holding that lock.
+- Pause/resume idempotency: `Idempotency-Key` is required by `pauseRoute` and `resumeRoute`.
+- Illegal transitions return `409` with `ILLEGAL_TRANSITION`.
+- Tenant isolation: cross-tenant pause/resume attempts return `403`.
+- Metrics: pause/resume attempts, successes, and failures are tracked in-memory.
+
+### Sequence Diagram: Concurrent Pause + Settle Tick
+
+```mermaid
+sequenceDiagram
+  participant C1 as Pause Client
+  participant C2 as Settle Worker
+  participant S as applyEvent(stream, cmd)
+  participant L as Stream Lock
+  C1->>S: pause(stream-1, Idempotency-Key)
+  S->>L: acquire stream lock
+  C2->>S: settle_tick(stream-1, amount)
+  S-->>C2: waits for lock
+  S->>S: transition active -> paused
+  S->>L: release lock
+  S->>L: settle acquires lock
+  S->>S: move escrow -> available (non-negative invariant)
+  S->>L: release lock
+```
+
+### Sequence Diagram: Concurrent Resume + Stop
+
+```mermaid
+sequenceDiagram
+  participant C1 as Resume Client
+  participant C2 as Stop Client
+  participant S as applyEvent(stream, cmd)
+  participant L as Stream Lock
+  C1->>S: resume(stream-1, Idempotency-Key)
+  S->>L: acquire stream lock
+  C2->>S: stop(stream-1)
+  S-->>C2: waits for lock
+  S->>S: paused -> active
+  S->>L: release lock
+  S->>L: stop acquires lock
+  S->>S: active -> ended
+  S->>L: release lock
+  Note over S: later resume returns 409 ILLEGAL_TRANSITION
+```
+
 ## License
 
 MIT
