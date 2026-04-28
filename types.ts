@@ -5,12 +5,20 @@ export interface MetricSnapshot {
   tenantId: string;
   streamCreations: number;
   settleAttempts: number;
+  stellarSubmissionsTotal: number;
+  stellarSubmissionsFailed: number;
+  oldestPendingJobSeconds: number;
+  dlqDepth: number;
+  p95SettlementLatencySeconds: number;
   timestamp: number;
 }
 
 export interface AnomalyThresholds {
   creationBurstLimit: number; // e.g., new streams per hour
   settleRateLimit: number;    // e.g., settle attempts per hour
+  submissionFailureThreshold?: number;
+  maxJobAgeSeconds?: number;
+  maxDlqDepth?: number;
 }
 
 export interface AnomalyAlert {
