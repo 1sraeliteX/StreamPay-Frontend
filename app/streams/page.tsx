@@ -1,11 +1,12 @@
 import { EmptyState } from "../components/EmptyState";
 import { StreamRow, type StreamRowData } from "../components/StreamRow";
+import { formatMonthlyScheduleSummary } from "./schedule";
 
 export type StreamsViewState = "empty" | "loading" | "populated";
 
 const streamListCopy = {
   description:
-    "Track recipients, rates, statuses, and the next action from one scan-friendly streams list.",
+    "Track recipients, rates, statuses, and the next action from one scan-friendly streams list. Calendar-month streams prorate by UTC when starting or pausing mid-month.",
   empty: {
     actionLabel: "Create Your First Stream",
     description: "No streams yet. Create one to start paying collaborators and vendors on a steady schedule.",
@@ -18,13 +19,20 @@ const streamListCopy = {
   primaryCta: "Create Stream",
 } as const;
 
+const adaMonthlySchedule = formatMonthlyScheduleSummary({
+  anchorDay: 31,
+  monthlyAmount: 120,
+  startDateUtc: new Date(Date.UTC(2025, 0, 31)),
+  displayTimeZone: "utc",
+});
+
 export const mockStreams: StreamRowData[] = [
   {
     id: "stream-ada",
     nextAction: "Pause",
     rate: "120 XLM / month",
     recipient: "Ada Creative Studio",
-    schedule: "Pays every 30 days",
+    schedule: adaMonthlySchedule.label,
     status: "active",
   },
   {
