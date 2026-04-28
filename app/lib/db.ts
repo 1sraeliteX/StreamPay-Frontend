@@ -54,6 +54,9 @@ export const db = {
   streams: createStreamsMap(),
   activity: createActivityMap(),
 
+export const db = {
+  streams: createInitialStreams(),
+  activity: createInitialActivity(),
   idempotency: new Map<string, unknown>(),
   exportJobs: new Map<string, ExportJob>(),
   exportAudit: new Array<ExportAuditRecord>(),

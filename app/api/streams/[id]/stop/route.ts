@@ -9,7 +9,7 @@ function createErrorResponse(code: string, message: string, status: number) {
 }
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -31,9 +31,27 @@ export async function POST(
   if (stream.status !== "active" && stream.status !== "draft") {
     return createErrorResponse("INVALID_STREAM_STATE", "Only active or draft streams can be stopped", 409);
   }
-  stream.status = "ended";
-  stream.nextAction = "withdraw";
-  stream.updatedAt = new Date().toISOString();
-  db.streams.set(id, stream);
-  return NextResponse.json({ data: stream });
+
+  const before = structuredClone(stream);
+  const updatedStream = {
+    ...stream,
+    status: "ended" as const,
+    nextAction: "withdraw" as const,
+    updatedAt: new Date().toISOString(),
+  };
+
+  db.streams.set(id, updatedStream);
+  recordPrivilegedStreamAuditEvent({
+    action: "stream.stop.override",
+    after: updatedStream,
+    before,
+    metadata: {
+      resultingStatus: updatedStream.status,
+    },
+    request,
+    streamId: id,
+    targetAccount: updatedStream.recipient,
+  });
+
+  return NextResponse.json({ data: updatedStream });
 }
