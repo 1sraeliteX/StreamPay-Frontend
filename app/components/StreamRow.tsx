@@ -35,6 +35,11 @@ export function StreamRow({ stream }: StreamRowProps) {
   };
 
   const handleAction = async () => {
+    if (isIncidentMode) {
+      setErrorMsg("On-chain operations are temporarily paused during incident mode.");
+      return;
+    }
+
     setIsProcessing(true);
     setError(null);
 
@@ -97,7 +102,7 @@ export function StreamRow({ stream }: StreamRowProps) {
           className="button button--secondary stream-row__action" 
           type="button"
           onClick={handleAction}
-          disabled={isProcessing}
+          disabled={isProcessing || isIncidentMode}
         >
           {isProcessing ? "Processing..." : stream.nextAction}
         </button>
