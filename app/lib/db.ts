@@ -1,6 +1,18 @@
-import { Stream, ActivityEvent } from "@/app/types/openapi";
+import { Stream, ActivityEvent, User } from "@/app/types/openapi";
 
 export const db = {
+  users: new Map<string, User>([
+    [
+      "GD7H...3J4K",
+      {
+        wallet_address: "GD7H...3J4K",
+        email: "ada@creativestudio.io",
+        display_name: "Ada Creative",
+        avatar_url: null,
+        created_at: "2026-01-01T00:00:00Z",
+      },
+    ],
+  ]),
   streams: new Map<string, Stream>([
     [
       "stream-ada",
@@ -13,6 +25,9 @@ export const db = {
         nextAction: "pause",
         createdAt: "2026-04-01T09:00:00Z",
         updatedAt: "2026-04-28T10:30:00Z",
+        email: "ada@creativestudio.io",
+        label: "Design Retainer Q2",
+        partnerId: "PARTNER-123",
       },
     ],
     [
@@ -26,6 +41,8 @@ export const db = {
         nextAction: "start",
         createdAt: "2026-04-10T14:00:00Z",
         updatedAt: "2026-04-28T11:00:00Z",
+        email: "kemi@onboarding.io",
+        memo: "April Support batch",
       },
     ],
     [
