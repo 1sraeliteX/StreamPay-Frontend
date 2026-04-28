@@ -53,6 +53,33 @@ export const AnomalyDetector = {
       });
     }
 
+    // Rule 3: High submission failure rate
+    const failureRate = snapshot.stellarSubmissionsTotal > 0 
+      ? snapshot.stellarSubmissionsFailed / snapshot.stellarSubmissionsTotal 
+      : 0;
+    if (failureRate > (config.submissionFailureThreshold ?? 0.05)) {
+      alerts.push({
+        tenantId: snapshot.tenantId,
+        ruleName: "HIGH_SUBMISSION_FAILURE_RATE" as any,
+        observedValue: failureRate,
+        threshold: config.submissionFailureThreshold ?? 0.05,
+        severity: "high",
+        detectedAt: new Date().toISOString(),
+      });
+    }
+
+    // Rule 4: DLQ Growth
+    if (snapshot.dlqDepth > (config.maxDlqDepth ?? 10)) {
+      alerts.push({
+        tenantId: snapshot.tenantId,
+        ruleName: "DLQ_DEPTH_EXCEEDED" as any,
+        observedValue: snapshot.dlqDepth,
+        threshold: config.maxDlqDepth ?? 10,
+        severity: "high",
+        detectedAt: new Date().toISOString(),
+      });
+    }
+
     return alerts;
   },
 
