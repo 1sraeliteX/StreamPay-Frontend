@@ -1,28 +1,23 @@
 /**
- * On-chain stream states matching StreamPay-Contracts
+ * Aggregate metric snapshot for a specific tenant within a rolling window.
  */
-export enum ContractStreamStatus {
-  DRAFT = 0,
-  ACTIVE = 1,
-  PAUSED = 2,
-  SETTLED = 3,
-  CANCELLED = 4,
+export interface MetricSnapshot {
+  tenantId: string;
+  streamCreations: number;
+  settleAttempts: number;
+  timestamp: number;
 }
 
-/**
- * Representation of the Soroban Contract Storage for a Stream
- */
-export interface OnChainStream {
-  id: string;
-  recipient_address: string;
-  total_amount: bigint;
-  released_amount: bigint;
-  velocity: bigint; // flow rate per second/block
-  last_update_timestamp: number;
-  status: ContractStreamStatus;
+export interface AnomalyThresholds {
+  creationBurstLimit: number; // e.g., new streams per hour
+  settleRateLimit: number;    // e.g., settle attempts per hour
 }
 
-export interface InvariantResult {
-  isValid: boolean;
-  error?: string;
+export interface AnomalyAlert {
+  tenantId: string;
+  ruleName: "STREAM_CREATION_BURST" | "SETTLE_RATE_SPIKE";
+  observedValue: number;
+  threshold: number;
+  severity: 'low' | 'medium' | 'high';
+  detectedAt: string;
 }
