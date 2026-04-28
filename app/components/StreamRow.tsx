@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { StatusBadge, type StreamStatus } from "./StatusBadge";
+import { ErrorToast } from "./ErrorToast";
 import { fetchWithIdempotency } from "../../lib/apiClient";
+import { isStreamPayError, formatErrorForDisplay } from "../lib/errors";
+import type { StreamPayError } from "../lib/errors";
 
 export type StreamRowData = {
   id: string;
@@ -19,11 +22,21 @@ type StreamRowProps = {
 
 export function StreamRow({ stream }: StreamRowProps) {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [error, setError] = useState<StreamPayError | null>(null);
+
+  const handleDismissError = () => {
+    setError(null);
+  };
+
+  const handleRetry = async () => {
+    if (!error?.retry.retryable) return;
+    handleDismissError();
+    await handleAction();
+  };
 
   const handleAction = async () => {
     setIsProcessing(true);
-    setErrorMsg(null);
+    setError(null);
 
     try {
       const actionRoute = stream.nextAction.toLowerCase();
@@ -39,8 +52,18 @@ export function StreamRow({ stream }: StreamRowProps) {
       });
 
       alert(`${stream.nextAction} successful for ${stream.recipient}!`);
-    } catch (error: any) {
-      setErrorMsg(error.message);
+    } catch (err: unknown) {
+      // Normalize error to StreamPayError format
+      const normalizedError = isStreamPayError(err) 
+        ? err 
+        : formatErrorForDisplay(err as StreamPayError);
+      
+      // Log to console in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Stream action failed:', err);
+      }
+      
+      setError(isStreamPayError(err) ? err : null);
     } finally {
       setIsProcessing(false);
     }
@@ -78,12 +101,17 @@ export function StreamRow({ stream }: StreamRowProps) {
         >
           {isProcessing ? "Processing..." : stream.nextAction}
         </button>
-        {errorMsg && (
-          <span style={{ color: "red", fontSize: "0.75rem", maxWidth: "200px", textAlign: "right" }}>
-            {errorMsg}
-          </span>
-        )}
       </div>
+      
+      {error && (
+        <ErrorToast
+          error={error}
+          onDismiss={handleDismissError}
+          onRetry={error.retry.retryable ? handleRetry : undefined}
+          autoDismiss={!error.retry.retryable}
+          autoDismissDelayMs={5000}
+        />
+      )}
     </article>
   );
 }
