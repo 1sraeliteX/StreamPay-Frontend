@@ -2,8 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 import { withCorrelationMiddleware } from "@/app/lib/correlation-middleware";
 import { logger, getCorrelationContext } from "@/app/lib/logger";
-
-const JWT_SECRET = process.env.JWT_SECRET || "streampay-dev-secret-do-not-use-in-prod";
+import { getConfig } from "@/app/lib/config";
 
 function createErrorResponse(code: string, message: string, status: number) {
   const context = getCorrelationContext();
@@ -28,7 +27,8 @@ export async function POST(request: Request) {
         return createErrorResponse("INVALID_SIGNATURE", "Signature verification failed", 401);
       }
 
-      const token = jwt.sign({ sub: publicKey, iss: "streampay" }, JWT_SECRET, { expiresIn: "15m" });
+      const config = getConfig();
+      const token = jwt.sign({ sub: publicKey, iss: "streampay" }, config.jwtSecret, { expiresIn: "15m" });
 
       logger.info('Wallet authentication successful', { public_key: publicKey });
 

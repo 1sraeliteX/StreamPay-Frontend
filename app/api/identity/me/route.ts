@@ -2,8 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 import { withCorrelationMiddleware } from "@/app/lib/correlation-middleware";
 import { logger, getCorrelationContext } from "@/app/lib/logger";
-
-const JWT_SECRET = process.env.JWT_SECRET || "streampay-dev-secret-do-not-use-in-prod";
+import { getConfig } from "@/app/lib/config";
 
 function createErrorResponse(code: string, message: string, status: number) {
   const context = getCorrelationContext();
@@ -22,7 +21,8 @@ export async function GET(request: Request) {
     }
     const token = authHeader.slice(7);
     try {
-      const verified = jwt.verify(token, JWT_SECRET) as { sub?: string };
+      const config = getConfig();
+      const verified = jwt.verify(token, config.jwtSecret) as { sub?: string };
       if (!verified.sub) {
         logger.warn('Invalid or expired token');
         return createErrorResponse("UNAUTHORIZED", "Invalid or expired token", 401);
